@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ElXora – Black & White Chat</title>
+    <title>ElXora</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
@@ -64,7 +64,7 @@
         });
 
         function initElXora() {
-            const API_KEY = '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';
+            const API_KEY = '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';
 
             const STORAGE = {
                 chats: 'elxora:chats',
@@ -234,12 +234,12 @@
                         headers: {
                             'Authorization': `Bearer ${API_KEY}`,
                             'Content-Type': 'application/json',
-                            'HTTP-Referer': window.location.origin || 'https://elxora-chat.pages.dev', // optional – helps with leaderboard
+                            'HTTP-Referer': window.location.origin || 'https://elxora-chat.pages.dev',
                             'X-Title': 'ElXora Chat'
                         },
                         body: JSON.stringify({
                             model: 'google/gemma-3-27b-it:free',
-                            messages: [{ role: 'system', content: 'You are ElXora.' }, ...chat.messages],
+                            messages: [{ role: 'system', content: 'You are ElXora, a helpful, witty, and friendly AI companion created for Kevin.' }, ...chat.messages],
                             stream: true
                         })
                     });
@@ -278,7 +278,7 @@
                     chat.messages.push({ role: 'assistant', content: fullResponse });
                     saveChats();
                 } catch (err) {
-                    aiBubble.innerHTML = `<span class="text-red-400 font-medium">Error: ${err.message || 'Failed to connect to ElXora brain'}</span><br><small class="text-gray-500">(Check your API key or credits on openrouter.ai)</small>`;
+                    aiBubble.innerHTML = `<span class="text-red-400 font-medium">Error: ${err.message || 'Failed to connect to ElXora brain'}</span><br><small class="text-gray-500">(Check your API key, credits, or model availability on openrouter.ai)</small>`;
                     console.error(err);
                 }
             }
