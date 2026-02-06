@@ -5,8 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ElXora</title>
     <link rel="icon" type="image/jpeg" href="images/elxora.jpg">
+
+    <!-- Highlight.js -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/github-dark-dimmed.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/lua.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/htmlbars.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/python.min.js"></script>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
     <style>
         body { margin: 0; font-family: 'Helvetica Neue', Arial, sans-serif; }
         #app { display: none; }
@@ -17,16 +28,78 @@
         .dot:nth-child(2) { animation-delay: 0.2s; }
         .dot:nth-child(3) { animation-delay: 0.4s; }
         @keyframes pulse { 0%, 100% { opacity: 0.4; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
-        pre code { background: #111; color: #eee; padding: 1.2rem; border-radius: 12px; overflow-x: auto; }
-        textarea:disabled { background: #1f2937; cursor: not-allowed; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Boxed code blocks */
+        .code-box {
+            position: relative;
+            margin: 1.5rem 0;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: #0d1117;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+
+        .code-header {
+            position: absolute;
+            top: 0;
+            right: 0;
+            left: 0;
+            height: 2.5rem;
+            background: rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 0.75rem;
+            font-size: 0.8rem;
+            color: #8b949e;
+            user-select: none;
+        }
+
+        .copy-btn {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12);
+            color: #c9d1d9;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255,255,255,0.15);
+            border-color: rgba(255,255,255,0.25);
+        }
+
+        .copy-btn.copied {
+            background: #238636;
+            color: white;
+            border-color: #238636;
+        }
+
+        pre {
+            margin: 0 !important;
+            padding: 3rem 1.5rem 1.25rem 1.5rem;
+            overflow-x: auto;
+        }
+
+        pre code.hljs {
+            display: block;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            background: transparent !important;
+            padding: 0;
+        }
+
+        .dark pre code.hljs { background: transparent !important; }
     </style>
 </head>
 <body class="bg-black text-white min-h-screen antialiased">
     <div id="loading" class="flex items-center justify-center min-h-screen text-gray-400">Loading ElXora...</div>
 
     <div id="app" class="min-h-screen flex flex-col lg:flex-row">
-        <!-- Sidebar (unchanged) -->
+        <!-- Sidebar -->
         <div id="sidebar" class="fixed lg:static inset-y-0 left-0 z-50 w-80 bg-gray-950 border-r border-gray-800 transform -translate-x-full lg:translate-x-0 transition-transform duration-500 ease-out overflow-y-auto">
             <div class="p-6 border-b border-gray-800 flex justify-between items-center">
                 <h2 class="text-2xl font-bold tracking-tight">ElXora Chats</h2>
@@ -58,6 +131,40 @@
     </div>
 
     <script>
+        // Highlight.js setup
+        hljs.configure({ languages: ['lua', 'html', 'css', 'javascript', 'python'] });
+        hljs.highlightAll();
+
+        marked.setOptions({
+            highlight: function(code, lang) {
+                const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+                return hljs.highlight(code, { language }).value;
+            },
+            langPrefix: 'hljs language-'
+        });
+
+        // Copy button logic
+        document.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('copy-btn')) {
+                const btn = e.target;
+                const code = btn.closest('.code-box').querySelector('code').innerText;
+
+                try {
+                    await navigator.clipboard.writeText(code);
+                    btn.textContent = 'Copied!';
+                    btn.classList.add('copied');
+                    setTimeout(() => {
+                        btn.textContent = 'Copy';
+                        btn.classList.remove('copied');
+                    }, 2000);
+                } catch (err) {
+                    console.error('Copy failed', err);
+                    btn.textContent = 'Failed';
+                    setTimeout(() => btn.textContent = 'Copy', 2000);
+                }
+            }
+        });
+
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('loading').style.display = 'none';
             document.getElementById('app').style.display = 'flex';
@@ -76,7 +183,7 @@
             let chats = JSON.parse(localStorage.getItem(STORAGE.chats)) || [];
             let currentId = localStorage.getItem(STORAGE.current);
             let isDark = localStorage.getItem(STORAGE.theme) !== 'light';
-            let isAiTyping = false; // ← NEW: prevents sending during streaming
+            let isAiTyping = false;
 
             const inputEl = document.getElementById('input');
             const sendBtn = document.getElementById('send');
@@ -186,16 +293,32 @@
                 const isUser = role === 'user';
                 const div = document.createElement('div');
                 div.className = `message flex ${isUser ? 'justify-end' : 'justify-start'}`;
-                
+
                 const bubble = document.createElement('div');
-                bubble.className = `max-w-3xl p-6 rounded-3xl prose prose-invert prose-headings:text-white ${isUser 
+                bubble.className = `max-w-3xl p-6 rounded-3xl prose prose-invert prose-headings:text-white prose-pre:my-4 prose-pre:bg-transparent ${isUser 
                     ? 'bg-white text-black' 
                     : 'bg-gray-900 border border-gray-800'}`;
-                
+
                 if (animate && !isUser) {
                     bubble.innerHTML = '<div class="typing-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
                 } else {
-                    bubble.innerHTML = marked.parse(content);
+                    let html = marked.parse(content);
+
+                    // Wrap code blocks in nice container with copy button
+                    html = html.replace(/<pre><code([^>]*)>([\s\S]*?)<\/code><\/pre>/g, (match, attrs, code) => {
+                        const langMatch = attrs.match(/class="[^"]*language-(\w+)/);
+                        const lang = langMatch ? langMatch[1] : 'text';
+                        return `
+                            <div class="code-box">
+                                <div class="code-header">
+                                    <button class="copy-btn">Copy</button>
+                                </div>
+                                <pre><code class="hljs language-${lang}">${code}</code></pre>
+                            </div>
+                        `;
+                    });
+
+                    bubble.innerHTML = html;
                 }
 
                 div.appendChild(bubble);
@@ -205,7 +328,7 @@
             }
 
             async function sendMessage() {
-                if (isAiTyping) return; // already protected by disabled button, but extra safety
+                if (isAiTyping) return;
 
                 const text = inputEl.value.trim();
                 if (!text || !currentId) return;
@@ -233,7 +356,7 @@
                 let fullResponse = '';
 
                 const apiMessages = [];
-                const systemContent = 'You are ElXora, a helpful, witty, and friendly AI companion created for Kevin.';
+                const systemContent = 'You are ElXora, a helpful, witty, and friendly AI companion.';
 
                 if (chat.messages.length > 0) {
                     const firstMsg = chat.messages[0];
@@ -286,7 +409,7 @@
                                     const delta = json.choices?.[0]?.delta?.content || '';
                                     if (delta) {
                                         fullResponse += delta;
-                                        aiBubble.textContent = fullResponse;
+                                        aiBubble.innerHTML = marked.parse(fullResponse);
                                         messages.scrollTop = messages.scrollHeight;
                                     }
                                 } catch {}
@@ -301,7 +424,6 @@
                     aiBubble.innerHTML = `<span class="text-red-400 font-medium">Error: ${err.message || 'Failed to connect'}</span>`;
                     console.error(err);
                 } finally {
-                    // Always re-enable input/send when done or error
                     isAiTyping = false;
                     updateInputState();
                 }
@@ -337,8 +459,8 @@
             if (chats.length === 0) createChat();
             if (currentId) selectChat(currentId);
             else if (chats.length > 0) selectChat(chats[0].id);
-            updateInputState(); // initial state
+            updateInputState();
         }
     </script>
 </body>
-    </html>
+</html>
