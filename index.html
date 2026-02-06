@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ElXora</title>
-    <!-- Favicon -->
     <link rel="icon" type="image/jpeg" href="images/elxora.jpg">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -19,13 +18,15 @@
         .dot:nth-child(3) { animation-delay: 0.4s; }
         @keyframes pulse { 0%, 100% { opacity: 0.4; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
         pre code { background: #111; color: #eee; padding: 1.2rem; border-radius: 12px; overflow-x: auto; }
+        textarea:disabled { background: #1f2937; cursor: not-allowed; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body class="bg-black text-white min-h-screen antialiased">
     <div id="loading" class="flex items-center justify-center min-h-screen text-gray-400">Loading ElXora...</div>
 
     <div id="app" class="min-h-screen flex flex-col lg:flex-row">
-        <!-- Sidebar -->
+        <!-- Sidebar (unchanged) -->
         <div id="sidebar" class="fixed lg:static inset-y-0 left-0 z-50 w-80 bg-gray-950 border-r border-gray-800 transform -translate-x-full lg:translate-x-0 transition-transform duration-500 ease-out overflow-y-auto">
             <div class="p-6 border-b border-gray-800 flex justify-between items-center">
                 <h2 class="text-2xl font-bold tracking-tight">ElXora Chats</h2>
@@ -37,10 +38,8 @@
             </div>
         </div>
 
-        <!-- Mobile overlay -->
         <div id="overlay" class="fixed inset-0 bg-black/70 z-40 hidden lg:hidden backdrop-blur-sm" onclick="toggleSidebar()"></div>
 
-        <!-- Main area -->
         <div class="flex-1 flex flex-col">
             <div class="lg:hidden p-5 bg-gray-950 border-b border-gray-800 flex items-center">
                 <button id="menu-btn" class="text-3xl mr-5">☰</button>
@@ -77,6 +76,10 @@
             let chats = JSON.parse(localStorage.getItem(STORAGE.chats)) || [];
             let currentId = localStorage.getItem(STORAGE.current);
             let isDark = localStorage.getItem(STORAGE.theme) !== 'light';
+            let isAiTyping = false; // ← NEW: prevents sending during streaming
+
+            const inputEl = document.getElementById('input');
+            const sendBtn = document.getElementById('send');
 
             document.documentElement.classList.toggle('dark', isDark);
             document.body.classList.toggle('bg-white', !isDark);
@@ -88,9 +91,12 @@
             const newBtn = document.getElementById('new-chat');
             const chatList = document.getElementById('chat-list');
             const messages = document.getElementById('messages');
-            const input = document.getElementById('input');
-            const sendBtn = document.getElementById('send');
             const themeBtn = document.getElementById('theme-toggle');
+
+            function updateInputState() {
+                inputEl.disabled = isAiTyping;
+                sendBtn.disabled = isAiTyping;
+            }
 
             function toggleSidebar() {
                 sidebar.classList.toggle('-translate-x-full');
@@ -118,31 +124,20 @@
                     const titleSpan = document.createElement('span');
                     titleSpan.textContent = chat.title;
                     titleSpan.className = 'font-medium flex-1 truncate';
-                    titleSpan.onclick = (e) => {
-                        e.stopPropagation();
-                        selectChat(chat.id);
-                    };
+                    titleSpan.onclick = (e) => { e.stopPropagation(); selectChat(chat.id); };
 
                     const actions = document.createElement('div');
                     actions.className = 'flex gap-6 opacity-0 group-hover:opacity-100 transition';
 
-                    // Rename button – image only, no background, no text
                     const renameBtn = document.createElement('button');
                     renameBtn.innerHTML = `<img src="images/rename.jpg" alt="Rename" class="w-7 h-7 bg-transparent">`;
                     renameBtn.className = 'bg-transparent border-none p-0 hover:opacity-80 focus:outline-none transition';
-                    renameBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        renameChat(chat.id);
-                    };
+                    renameBtn.onclick = (e) => { e.stopPropagation(); renameChat(chat.id); };
 
-                    // Delete button – image only, no background, no text
                     const deleteBtn = document.createElement('button');
                     deleteBtn.innerHTML = `<img src="images/delete.jpg" alt="Delete" class="w-7 h-7 bg-transparent">`;
                     deleteBtn.className = 'bg-transparent border-none p-0 hover:opacity-80 focus:outline-none transition';
-                    deleteBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        deleteChat(chat.id);
-                    };
+                    deleteBtn.onclick = (e) => { e.stopPropagation(); deleteChat(chat.id); };
 
                     actions.append(renameBtn, deleteBtn);
                     li.append(titleSpan, actions);
@@ -210,7 +205,9 @@
             }
 
             async function sendMessage() {
-                const text = input.value.trim();
+                if (isAiTyping) return; // already protected by disabled button, but extra safety
+
+                const text = inputEl.value.trim();
                 if (!text || !currentId) return;
 
                 const chat = chats.find(c => c.id === currentId);
@@ -218,8 +215,11 @@
 
                 chat.messages.push({ role: 'user', content: text });
                 addMessage('user', text);
-                input.value = '';
+                inputEl.value = '';
                 saveChats();
+
+                isAiTyping = true;
+                updateInputState();
 
                 const aiDiv = document.createElement('div');
                 aiDiv.className = 'message flex justify-start visible';
@@ -238,10 +238,7 @@
                 if (chat.messages.length > 0) {
                     const firstMsg = chat.messages[0];
                     if (firstMsg.role === 'user') {
-                        apiMessages.push({
-                            role: 'user',
-                            content: systemContent + "\n\n" + firstMsg.content
-                        });
+                        apiMessages.push({ role: 'user', content: systemContent + "\n\n" + firstMsg.content });
                     } else {
                         apiMessages.push({ role: 'user', content: systemContent });
                         apiMessages.push(firstMsg);
@@ -301,8 +298,12 @@
                     chat.messages.push({ role: 'assistant', content: fullResponse });
                     saveChats();
                 } catch (err) {
-                    aiBubble.innerHTML = `<span class="text-red-400 font-medium">Error: ${err.message || 'Failed to connect to ElXora brain'}</span><br><small class="text-gray-500">(Check key/credits/model on openrouter.ai – GLM-4.5-Air free has daily limits)</small>`;
+                    aiBubble.innerHTML = `<span class="text-red-400 font-medium">Error: ${err.message || 'Failed to connect'}</span>`;
                     console.error(err);
+                } finally {
+                    // Always re-enable input/send when done or error
+                    isAiTyping = false;
+                    updateInputState();
                 }
             }
 
@@ -310,8 +311,8 @@
             menuBtn.onclick = toggleSidebar;
             newBtn.onclick = createChat;
             sendBtn.onclick = sendMessage;
-            input.onkeydown = e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
+            inputEl.onkeydown = e => {
+                if (e.key === 'Enter' && !e.shiftKey && !isAiTyping) {
                     e.preventDefault();
                     sendMessage();
                 }
@@ -326,11 +327,17 @@
                 localStorage.setItem(STORAGE.theme, isDark ? 'dark' : 'light');
             };
 
+            function updateInputState() {
+                inputEl.disabled = isAiTyping;
+                sendBtn.disabled = isAiTyping;
+            }
+
             // Bootstrap
             renderList();
             if (chats.length === 0) createChat();
             if (currentId) selectChat(currentId);
             else if (chats.length > 0) selectChat(chats[0].id);
+            updateInputState(); // initial state
         }
     </script>
 </body>
