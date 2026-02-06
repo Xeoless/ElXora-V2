@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ElXora</title>
-    <!-- Favicon from your images folder -->
+    <!-- Favicon -->
     <link rel="icon" type="image/jpeg" href="images/elxora.jpg">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -124,19 +124,19 @@
                     };
 
                     const actions = document.createElement('div');
-                    actions.className = 'flex gap-3 opacity-0 group-hover:opacity-100 transition';
+                    actions.className = 'flex gap-5 opacity-0 group-hover:opacity-100 transition';
 
                     const renameBtn = document.createElement('button');
-                    renameBtn.innerHTML = `<img src="images/rename.jpg" alt="Rename" class="w-4 h-4 inline mr-1">Rename`;
-                    renameBtn.className = 'text-sm text-gray-400 hover:text-white flex items-center';
+                    renameBtn.innerHTML = `<img src="images/rename.jpg" alt="Rename" class="w-6 h-6">`;
+                    renameBtn.className = 'bg-transparent border-none p-0 hover:opacity-80 transition';
                     renameBtn.onclick = (e) => {
                         e.stopPropagation();
                         renameChat(chat.id);
                     };
 
                     const deleteBtn = document.createElement('button');
-                    deleteBtn.innerHTML = `<img src="images/delete.jpg" alt="Delete" class="w-4 h-4 inline mr-1">Delete`;
-                    deleteBtn.className = 'text-sm text-red-400 hover:text-red-300 flex items-center';
+                    deleteBtn.innerHTML = `<img src="images/delete.jpg" alt="Delete" class="w-6 h-6">`;
+                    deleteBtn.className = 'bg-transparent border-none p-0 hover:opacity-80 transition';
                     deleteBtn.onclick = (e) => {
                         e.stopPropagation();
                         deleteChat(chat.id);
@@ -230,7 +230,6 @@
 
                 let fullResponse = '';
 
-                // Prepare messages without separate system role (merged into first user message)
                 const apiMessages = [];
                 const systemContent = 'You are ElXora, a helpful, witty, and friendly AI companion created for Kevin.';
 
@@ -333,4 +332,4 @@
         }
     </script>
 </body>
-</html>
+    </html>
