@@ -1,79 +1,56 @@
 <!DOCTYPE html>
-<html lang="en" class="light">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini Flash Chat</title>
+    <title>ElXora</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { margin: 0; font-family: 'Helvetica Neue', Arial, sans-serif; }
         #app { display: none; }
-        .message-bubble { backdrop-filter: blur(10px); }
-        .typing-indicator { display: flex; align-items: center; gap: 0.35rem; }
-        .typing-dot { width: 8px; height: 8px; background: currentColor; border-radius: 50%; animation: bounce 1.2s infinite; }
-        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-6px); } }
-        pre code { background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 0.75rem; overflow-x: auto; font-size: 0.9em; }
-        .dark pre code { background: #0f172a; color: #cbd5e1; }
+        .message { opacity: 0; transform: translateY(20px); transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .message.visible { opacity: 1; transform: translateY(0); }
+        .typing-dots { display: flex; gap: 6px; }
+        .dot { width: 8px; height: 8px; background: currentColor; border-radius: 50%; animation: pulse 1.4s infinite; }
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
+        pre code { background: #111; color: #eee; padding: 1.2rem; border-radius: 12px; overflow-x: auto; }
     </style>
 </head>
-<body class="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
-    <div id="loading" class="flex justify-center items-center min-h-screen text-gray-500 dark:text-gray-400 text-lg">Loading...</div>
-    
-    <div id="app" class="min-h-screen flex flex-col md:flex-row">
+<body class="bg-black text-white min-h-screen antialiased">
+    <div id="loading" class="flex items-center justify-center min-h-screen text-gray-400">Loading ElXora...</div>
+
+    <div id="app" class="min-h-screen flex flex-col lg:flex-row">
         <!-- Sidebar -->
-        <div id="sidebar" class="fixed md:static inset-y-0 left-0 z-50 w-72 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl shadow-2xl transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out overflow-y-auto border-r border-gray-200/50 dark:border-gray-800/50">
-            <div class="p-5 flex justify-between items-center border-b border-gray-200/50 dark:border-gray-800/50">
-                <h2 class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Chats</h2>
-                <button id="new-chat" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-full text-sm font-medium hover:shadow-lg hover:shadow-blue-500/30 transition">New Chat</button>
+        <div id="sidebar" class="fixed lg:static inset-y-0 left-0 z-50 w-80 bg-gray-950 border-r border-gray-800 transform -translate-x-full lg:translate-x-0 transition-transform duration-500 ease-out overflow-y-auto">
+            <div class="p-6 border-b border-gray-800 flex justify-between items-center">
+                <h2 class="text-2xl font-bold tracking-tight">ElXora Chats</h2>
             </div>
-            <ul id="chat-list" class="p-4 space-y-1.5"></ul>
-            <div class="p-5 border-t border-gray-200/50 dark:border-gray-800/50 mt-auto">
-                <button id="dark-mode-toggle" class="w-full text-left py-3 px-4 rounded-xl hover:bg-white/10 dark:hover:bg-gray-800/50 transition flex items-center gap-3">
-                    <span>Toggle Dark Mode</span>
-                </button>
+            <ul id="chat-list" class="p-4 space-y-2"></ul>
+            <div class="p-6 border-t border-gray-800 mt-auto">
+                <button id="new-chat" class="w-full py-3 bg-white text-black font-medium rounded-xl hover:bg-gray-200 transition">New Conversation</button>
+                <button id="theme-toggle" class="w-full mt-4 py-3 border border-gray-700 rounded-xl hover:bg-gray-900 transition">Switch to Light</button>
             </div>
         </div>
 
-        <!-- Overlay -->
-        <div id="sidebar-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden md:hidden" onclick="toggleSidebar()"></div>
+        <!-- Mobile overlay -->
+        <div id="overlay" class="fixed inset-0 bg-black/70 z-40 hidden lg:hidden backdrop-blur-sm" onclick="toggleSidebar()"></div>
 
-        <!-- Main -->
-        <div class="flex-1 flex flex-col min-h-screen">
-            <div class="md:hidden p-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl shadow flex items-center border-b border-gray-200/50 dark:border-gray-800/50">
-                <button id="hamburger" class="text-3xl mr-4 text-gray-700 dark:text-gray-300">☰</button>
-                <h1 class="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Flash Chat</h1>
+        <!-- Main area -->
+        <div class="flex-1 flex flex-col">
+            <div class="lg:hidden p-5 bg-gray-950 border-b border-gray-800 flex items-center">
+                <button id="menu-btn" class="text-3xl mr-5">☰</button>
+                <h1 class="text-xl font-bold">Chat with ElXora</h1>
             </div>
 
-            <div id="chat-messages" class="flex-1 p-5 md:p-8 overflow-y-auto space-y-6"></div>
+            <div id="messages" class="flex-1 p-6 lg:p-10 overflow-y-auto space-y-8"></div>
 
-            <!-- Input -->
-            <div class="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-800/50 p-5 sticky bottom-0">
-                <div class="flex items-end max-w-5xl mx-auto gap-3">
-                    <textarea id="user-input" class="flex-1 p-4 border border-gray-300/50 dark:border-gray-700/50 rounded-2xl resize-none dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-blue-500/50 min-h-[56px] shadow-inner transition" rows="1" placeholder="Ask anything..."></textarea>
-                    <button id="send-btn" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-2xl font-medium hover:shadow-lg hover:shadow-blue-500/40 transition flex items-center gap-2">
-                        Send →
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Minimal Settings (just model & system prompt) -->
-        <div id="settings-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden backdrop-blur-sm">
-            <div class="bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl rounded-3xl p-8 w-full max-w-lg mx-6 shadow-2xl border border-gray-200/50 dark:border-gray-800/50">
-                <h2 class="text-3xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Settings</h2>
-                
-                <label class="block mb-2 font-medium text-gray-700 dark:text-gray-300">Model</label>
-                <input id="model" class="w-full p-4 border border-gray-300/50 dark:border-gray-700/50 rounded-2xl dark:bg-gray-800/50 mb-6 focus:outline-none focus:ring-2 focus:ring-purple-500/50" value="google/gemini-2.0-flash-exp">
-
-                <label class="block mb-2 font-medium text-gray-700 dark:text-gray-300">System Prompt</label>
-                <textarea id="system-prompt" class="w-full p-4 border border-gray-300/50 dark:border-gray-700/50 rounded-2xl dark:bg-gray-800/50 resize-none h-32 mb-8 focus:outline-none focus:ring-2 focus:ring-purple-500/50">You are a helpful, concise, and friendly assistant powered by Gemini Flash 2.0.</textarea>
-
-                <div class="flex justify-end gap-4">
-                    <button id="close-settings" class="px-6 py-3 rounded-2xl border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition">Close</button>
-                    <button id="save-settings" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-2xl font-medium hover:shadow-lg hover:shadow-purple-500/30 transition">Save</button>
+            <div class="p-6 border-t border-gray-800 bg-gray-950 sticky bottom-0">
+                <div class="max-w-4xl mx-auto flex gap-4">
+                    <textarea id="input" class="flex-1 p-5 bg-gray-900 border border-gray-800 rounded-2xl resize-none focus:outline-none focus:border-gray-500 transition min-h-[60px]" rows="1" placeholder="Talk to ElXora..."></textarea>
+                    <button id="send" class="px-8 py-5 bg-white text-black font-semibold rounded-2xl hover:scale-105 hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] transition">Send</button>
                 </div>
             </div>
         </div>
@@ -83,175 +60,189 @@
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('loading').style.display = 'none';
             document.getElementById('app').style.display = 'flex';
-            initApp();
+            initElXora();
         });
 
-        function initApp() {
-            const API_KEY = 'AIzaSyDzqu7wd1Z7LNLs5GT9fdFaXBUeKv1C6Jk';  // ← Hardcoded (replace if needed)
+        function initElXora() {
+            const API_KEY = 'sk-or-v1-YOUR_REAL_OPENROUTER_KEY_HERE'; // ← Replace with your actual OpenRouter API key
 
-            const KEYS = {
-                model: 'flashChat:model',
-                systemPrompt: 'flashChat:systemPrompt',
-                chats: 'flashChat:chats',
-                darkMode: 'flashChat:darkMode',
-                currentChatId: 'flashChat:currentChatId'
+            const STORAGE = {
+                chats: 'elxora:chats',
+                current: 'elxora:current',
+                theme: 'elxora:theme'
             };
 
-            let model = localStorage.getItem(KEYS.model) || 'google/gemini-2.0-flash-exp';
-            let systemPrompt = localStorage.getItem(KEYS.systemPrompt) || 'You are a helpful, concise, and friendly assistant powered by Gemini Flash 2.0.';
-            let chats = JSON.parse(localStorage.getItem(KEYS.chats)) || [];
-            let darkMode = localStorage.getItem(KEYS.darkMode) === 'true';
-            let currentChatId = localStorage.getItem(KEYS.currentChatId) || null;
+            let chats = JSON.parse(localStorage.getItem(STORAGE.chats)) || [];
+            let currentId = localStorage.getItem(STORAGE.current);
+            let isDark = localStorage.getItem(STORAGE.theme) !== 'light';
 
-            if (darkMode) document.documentElement.classList.add('dark');
+            document.documentElement.classList.toggle('dark', isDark);
+            document.body.classList.toggle('bg-white', !isDark);
+            document.body.classList.toggle('text-black', !isDark);
 
             const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebar-overlay');
-            const hamburger = document.getElementById('hamburger');
-            const newChatBtn = document.getElementById('new-chat');
-            const chatListEl = document.getElementById('chat-list');
-            const messagesEl = document.getElementById('chat-messages');
-            const inputEl = document.getElementById('user-input');
-            const sendBtn = document.getElementById('send-btn');
-            const darkToggle = document.getElementById('dark-mode-toggle');
-            const modal = document.getElementById('settings-modal');
-            const modelInput = document.getElementById('model');
-            const promptInput = document.getElementById('system-prompt');
-            const saveBtn = document.getElementById('save-settings');
-            const closeBtn = document.getElementById('close-settings');
+            const overlay = document.getElementById('overlay');
+            const menuBtn = document.getElementById('menu-btn');
+            const newBtn = document.getElementById('new-chat');
+            const chatList = document.getElementById('chat-list');
+            const messages = document.getElementById('messages');
+            const input = document.getElementById('input');
+            const sendBtn = document.getElementById('send');
+            const themeBtn = document.getElementById('theme-toggle');
 
             function toggleSidebar() {
                 sidebar.classList.toggle('-translate-x-full');
                 overlay.classList.toggle('hidden');
             }
 
-            function createNewChat() {
+            function createChat() {
                 const id = Date.now().toString();
-                chats.push({ id, title: `Chat ${chats.length + 1}`, messages: [] });
-                localStorage.setItem(KEYS.chats, JSON.stringify(chats));
-                renderChats();
+                chats.push({ id, title: `Conversation ${chats.length + 1}`, messages: [] });
+                saveChats();
+                renderList();
                 selectChat(id);
             }
 
-            function renderChats() {
-                chatListEl.innerHTML = '';
+            function saveChats() {
+                localStorage.setItem(STORAGE.chats, JSON.stringify(chats));
+            }
+
+            function renderList() {
+                chatList.innerHTML = '';
                 chats.forEach(chat => {
                     const li = document.createElement('li');
-                    li.className = `p-4 rounded-2xl cursor-pointer transition ${chat.id === currentChatId ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20' : 'hover:bg-white/10 dark:hover:bg-gray-800/30'}`;
-                    li.innerHTML = `
-                        <div class="font-medium">${chat.title}</div>
-                        <div class="text-xs opacity-60 mt-1 flex justify-between">
-                            <span>${new Date(parseInt(chat.id)).toLocaleDateString()}</span>
-                            <span class="flex gap-3">
-                                <button class="hover:text-blue-400" onclick="event.stopPropagation(); renameChat('${chat.id}')">Rename</button>
-                                <button class="hover:text-red-400" onclick="event.stopPropagation(); deleteChat('${chat.id}')">Delete</button>
-                            </span>
-                        </div>
-                    `;
-                    li.onclick = () => selectChat(chat.id);
-                    chatListEl.appendChild(li);
+                    li.className = `group flex items-center justify-between p-4 rounded-xl cursor-pointer transition ${chat.id === currentId ? 'bg-gray-800' : 'hover:bg-gray-900'}`;
+
+                    const titleSpan = document.createElement('span');
+                    titleSpan.textContent = chat.title;
+                    titleSpan.className = 'font-medium flex-1 truncate';
+                    titleSpan.onclick = (e) => {
+                        e.stopPropagation();
+                        selectChat(chat.id);
+                    };
+
+                    const actions = document.createElement('div');
+                    actions.className = 'flex gap-3 opacity-0 group-hover:opacity-100 transition';
+
+                    const renameBtn = document.createElement('button');
+                    renameBtn.textContent = 'Rename';
+                    renameBtn.className = 'text-sm text-gray-400 hover:text-white';
+                    renameBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        renameChat(chat.id);
+                    };
+
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.textContent = 'Delete';
+                    deleteBtn.className = 'text-sm text-red-400 hover:text-red-300';
+                    deleteBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        deleteChat(chat.id);
+                    };
+
+                    actions.append(renameBtn, deleteBtn);
+                    li.append(titleSpan, actions);
+                    li.onclick = () => selectChat(chat.id); // whole row selects except buttons
+
+                    chatList.appendChild(li);
                 });
             }
 
             function selectChat(id) {
-                currentChatId = id;
-                localStorage.setItem(KEYS.currentChatId, id);
+                currentId = id;
+                localStorage.setItem(STORAGE.current, id);
                 const chat = chats.find(c => c.id === id);
                 if (!chat) return;
-                messagesEl.innerHTML = '';
+                messages.innerHTML = '';
                 chat.messages.forEach(m => addMessage(m.role, m.content, false));
-                renderChats();
-                if (window.innerWidth < 768) toggleSidebar();
+                renderList();
+                if (window.innerWidth < 1024) toggleSidebar();
             }
 
             function renameChat(id) {
                 const chat = chats.find(c => c.id === id);
                 if (!chat) return;
-                const title = prompt('New title:', chat.title);
-                if (title?.trim()) {
-                    chat.title = title.trim();
-                    localStorage.setItem(KEYS.chats, JSON.stringify(chats));
-                    renderChats();
+                const newTitle = prompt('New conversation name:', chat.title);
+                if (newTitle && newTitle.trim()) {
+                    chat.title = newTitle.trim();
+                    saveChats();
+                    renderList();
                 }
             }
 
             function deleteChat(id) {
-                if (!confirm('Delete chat?')) return;
+                if (!confirm('Delete this conversation?')) return;
                 chats = chats.filter(c => c.id !== id);
-                localStorage.setItem(KEYS.chats, JSON.stringify(chats));
-                if (currentChatId === id) {
-                    currentChatId = chats[0]?.id || null;
-                    localStorage.setItem(KEYS.currentChatId, currentChatId);
+                saveChats();
+                if (currentId === id) {
+                    currentId = chats.length > 0 ? chats[0].id : null;
+                    localStorage.setItem(STORAGE.current, currentId);
                 }
-                renderChats();
-                if (currentChatId) selectChat(currentChatId);
-                else messagesEl.innerHTML = '';
+                renderList();
+                if (currentId) selectChat(currentId);
+                else messages.innerHTML = '<div class="text-gray-500 text-center mt-20">No conversation selected</div>';
             }
 
             function addMessage(role, content, animate = false) {
                 const isUser = role === 'user';
-                const container = document.createElement('div');
-                container.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
-
+                const div = document.createElement('div');
+                div.className = `message flex ${isUser ? 'justify-end' : 'justify-start'}`;
+                
                 const bubble = document.createElement('div');
-                bubble.className = `message-bubble max-w-[85%] md:max-w-3xl p-5 rounded-3xl shadow-md prose dark:prose-invert prose-blue ${isUser 
-                    ? 'bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-br-none' 
-                    : 'bg-white/70 dark:bg-gray-800/70 text-gray-900 dark:text-gray-100 rounded-bl-none border border-gray-200/50 dark:border-gray-700/50'}`;
-
+                bubble.className = `max-w-3xl p-6 rounded-3xl prose prose-invert prose-headings:text-white ${isUser 
+                    ? 'bg-white text-black' 
+                    : 'bg-gray-900 border border-gray-800'}`;
+                
                 if (animate && !isUser) {
-                    bubble.innerHTML = '<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
+                    bubble.innerHTML = '<div class="typing-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
                 } else {
                     bubble.innerHTML = marked.parse(content);
                 }
 
-                container.appendChild(bubble);
-                messagesEl.appendChild(container);
-                messagesEl.scrollTop = messagesEl.scrollHeight;
+                div.appendChild(bubble);
+                messages.appendChild(div);
+                setTimeout(() => div.classList.add('visible'), 10);
+                messages.scrollTop = messages.scrollHeight;
             }
 
             async function sendMessage() {
-                const text = inputEl.value.trim();
-                if (!text || !currentChatId) return;
+                const text = input.value.trim();
+                if (!text || !currentId) return;
 
-                const chat = chats.find(c => c.id === currentChatId);
+                const chat = chats.find(c => c.id === currentId);
                 if (!chat) return;
 
                 chat.messages.push({ role: 'user', content: text });
                 addMessage('user', text);
-                inputEl.value = '';
-                localStorage.setItem(KEYS.chats, JSON.stringify(chats));
+                input.value = '';
+                saveChats();
 
-                // AI placeholder with typing
                 const aiDiv = document.createElement('div');
-                aiDiv.className = 'flex justify-start';
+                aiDiv.className = 'message flex justify-start visible';
                 const aiBubble = document.createElement('div');
-                aiBubble.className = 'message-bubble max-w-[85%] md:max-w-3xl p-5 rounded-3xl bg-white/70 dark:bg-gray-800/70 border border-gray-200/50 dark:border-gray-700/50 rounded-bl-none shadow-md prose dark:prose-invert prose-blue';
-                aiBubble.innerHTML = '<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
+                aiBubble.className = 'max-w-3xl p-6 rounded-3xl bg-gray-900 border border-gray-800';
+                aiBubble.innerHTML = '<div class="typing-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
                 aiDiv.appendChild(aiBubble);
-                messagesEl.appendChild(aiDiv);
-                messagesEl.scrollTop = messagesEl.scrollHeight;
+                messages.appendChild(aiDiv);
+                messages.scrollTop = messages.scrollHeight;
 
-                let full = '';
+                let fullResponse = '';
 
                 try {
                     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                         method: 'POST',
                         headers: {
                             'Authorization': `Bearer ${API_KEY}`,
-                            'Content-Type': 'application/json',
-                            'HTTP-Referer': window.location.origin,
-                            'X-Title': 'Gemini Flash Chat'
+                            'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            model,
-                            messages: [{ role: 'system', content: systemPrompt }, ...chat.messages],
+                            model: 'google/gemini-2.0-flash-exp',
+                            messages: [{ role: 'system', content: 'You are ElXora, a helpful and witty AI companion.' }, ...chat.messages],
                             stream: true
                         })
                     });
 
-                    if (!res.ok) {
-                        throw new Error(`API error: ${res.status} ${res.statusText}`);
-                    }
+                    if (!res.ok) throw new Error(`API returned ${res.status}`);
 
                     const reader = res.body.getReader();
                     const decoder = new TextDecoder();
@@ -266,64 +257,51 @@
                                 const data = line.slice(6).trim();
                                 if (data === '[DONE]') break;
                                 try {
-                                    const parsed = JSON.parse(data);
-                                    const delta = parsed.choices?.[0]?.delta?.content || '';
+                                    const json = JSON.parse(data);
+                                    const delta = json.choices?.[0]?.delta?.content || '';
                                     if (delta) {
-                                        full += delta;
-                                        aiBubble.textContent = full;
-                                        messagesEl.scrollTop = messagesEl.scrollHeight;
+                                        fullResponse += delta;
+                                        aiBubble.textContent = fullResponse;
+                                        messages.scrollTop = messages.scrollHeight;
                                     }
                                 } catch {}
                             }
                         }
                     }
 
-                    aiBubble.innerHTML = marked.parse(full);
-                    chat.messages.push({ role: 'assistant', content: full });
-                    localStorage.setItem(KEYS.chats, JSON.stringify(chats));
+                    aiBubble.innerHTML = marked.parse(fullResponse);
+                    chat.messages.push({ role: 'assistant', content: fullResponse });
+                    saveChats();
                 } catch (err) {
-                    aiBubble.innerHTML = `<div class="text-red-500 font-medium">Error: ${err.message || 'Failed to connect'}</div>`;
-                    console.error(err);
+                    aiBubble.innerHTML = `<span class="text-red-400">Error: ${err.message || 'Connection failed'}</span>`;
                 }
             }
 
-            // Events
-            hamburger.onclick = toggleSidebar;
-            newChatBtn.onclick = createNewChat;
+            // Event listeners
+            menuBtn.onclick = toggleSidebar;
+            newBtn.onclick = createChat;
             sendBtn.onclick = sendMessage;
-            inputEl.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
-            darkToggle.onclick = () => {
-                darkMode = !darkMode;
-                document.documentElement.classList.toggle('dark', darkMode);
-                localStorage.setItem(KEYS.darkMode, darkMode);
-            };
-
-            // Settings (model + prompt only)
-            document.body.addEventListener('keydown', e => {
-                if (e.key === ',' && e.metaKey) {  // Cmd/Ctrl + ,
+            input.onkeydown = e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    modelInput.value = model;
-                    promptInput.value = systemPrompt;
-                    modal.classList.remove('hidden');
+                    sendMessage();
                 }
-            });
-
-            saveBtn.onclick = () => {
-                model = modelInput.value.trim() || 'google/gemini-2.0-flash-exp';
-                systemPrompt = promptInput.value.trim() || 'You are a helpful assistant.';
-                localStorage.setItem(KEYS.model, model);
-                localStorage.setItem(KEYS.systemPrompt, systemPrompt);
-                modal.classList.add('hidden');
             };
 
-            closeBtn.onclick = () => modal.classList.add('hidden');
-            modal.onclick = e => { if (e.target === modal) modal.classList.add('hidden'); };
+            themeBtn.onclick = () => {
+                isDark = !isDark;
+                document.documentElement.classList.toggle('dark', isDark);
+                document.body.classList.toggle('bg-white', !isDark);
+                document.body.classList.toggle('text-black', !isDark);
+                themeBtn.textContent = isDark ? 'Switch to Light' : 'Switch to Dark';
+                localStorage.setItem(STORAGE.theme, isDark ? 'dark' : 'light');
+            };
 
-            // Init
-            renderChats();
-            if (!chats.length) createNewChat();
-            if (currentChatId) selectChat(currentChatId);
-            else if (chats.length) selectChat(chats[0].id);
+            // Bootstrap
+            renderList();
+            if (chats.length === 0) createChat();
+            if (currentId) selectChat(currentId);
+            else if (chats.length > 0) selectChat(chats[0].id);
         }
     </script>
 </body>
