@@ -29,7 +29,7 @@
         .dot:nth-child(3) { animation-delay: 0.4s; }
         @keyframes pulse { 0%, 100% { opacity: 0.4; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
 
-        /* Boxed code blocks */
+        /* Boxed code blocks with copy button */
         .code-box {
             position: relative;
             margin: 1.5rem 0;
@@ -42,9 +42,7 @@
 
         .code-header {
             position: absolute;
-            top: 0;
-            right: 0;
-            left: 0;
+            top: 0; right: 0; left: 0;
             height: 2.5rem;
             background: rgba(0,0,0,0.4);
             display: flex;
@@ -67,32 +65,13 @@
             transition: all 0.2s;
         }
 
-        .copy-btn:hover {
-            background: rgba(255,255,255,0.15);
-            border-color: rgba(255,255,255,0.25);
-        }
+        .copy-btn:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.25); }
+        .copy-btn.copied { background: #238636; color: white; border-color: #238636; }
 
-        .copy-btn.copied {
-            background: #238636;
-            color: white;
-            border-color: #238636;
-        }
-
-        pre {
-            margin: 0 !important;
-            padding: 3rem 1.5rem 1.25rem 1.5rem;
-            overflow-x: auto;
-        }
-
-        pre code.hljs {
-            display: block;
-            font-size: 0.95rem;
-            line-height: 1.5;
-            background: transparent !important;
-            padding: 0;
-        }
-
-        .dark pre code.hljs { background: transparent !important; }
+        pre { margin: 0 !important; padding: 3rem 1.5rem 1.25rem 1.5rem; overflow-x: auto; }
+        pre code.hljs { display: block; font-size: 0.95rem; line-height: 1.5; background: transparent !important; padding: 0; }
+        textarea:disabled { background: #1f2937; cursor: not-allowed; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body class="bg-black text-white min-h-screen antialiased">
@@ -147,7 +126,8 @@
         document.addEventListener('click', async (e) => {
             if (e.target.classList.contains('copy-btn')) {
                 const btn = e.target;
-                const code = btn.closest('.code-box').querySelector('code').innerText;
+                const codeElement = btn.closest('.code-box').querySelector('code');
+                const code = codeElement ? codeElement.innerText : '';
 
                 try {
                     await navigator.clipboard.writeText(code);
@@ -172,7 +152,7 @@
         });
 
         function initElXora() {
-            const API_KEY = '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';
+            const PROXY_URL = '/api/chat';  // ← Now using your Vercel serverless function
 
             const STORAGE = {
                 chats: 'elxora:chats',
@@ -304,16 +284,27 @@
                 } else {
                     let html = marked.parse(content);
 
-                    // Wrap code blocks in nice container with copy button
-                    html = html.replace(/<pre><code([^>]*)>([\s\S]*?)<\/code><\/pre>/g, (match, attrs, code) => {
-                        const langMatch = attrs.match(/class="[^"]*language-(\w+)/);
-                        const lang = langMatch ? langMatch[1] : 'text';
+                    html = html.replace(/<pre><code class="hljs language-(\w+)"[^>]*>([\s\S]*?)<\/code><\/pre>/g, (match, lang, code) => {
+                        const displayLang = lang.toUpperCase();
                         return `
                             <div class="code-box">
                                 <div class="code-header">
+                                    <span class="mr-auto text-sm opacity-80">${displayLang}</span>
                                     <button class="copy-btn">Copy</button>
                                 </div>
-                                <pre><code class="hljs language-${lang}">${code}</code></pre>
+                                <pre><code class="hljs language-${lang}">${code.trim()}</code></pre>
+                            </div>
+                        `;
+                    });
+
+                    html = html.replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g, (match, code) => {
+                        return `
+                            <div class="code-box">
+                                <div class="code-header">
+                                    <span class="mr-auto text-sm opacity-80">Code</span>
+                                    <button class="copy-btn">Copy</button>
+                                </div>
+                                <pre><code class="hljs plaintext">${code.trim()}</code></pre>
                             </div>
                         `;
                     });
@@ -372,13 +363,10 @@
                 }
 
                 try {
-                    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                    const res = await fetch(PROXY_URL, {
                         method: 'POST',
                         headers: {
-                            'Authorization': `Bearer ${API_KEY}`,
-                            'Content-Type': 'application/json',
-                            'HTTP-Referer': window.location.origin || 'https://elxora-chat.pages.dev',
-                            'X-Title': 'ElXora Chat'
+                            'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
                             model: 'z-ai/glm-4.5-air:free',
@@ -389,7 +377,7 @@
 
                     if (!res.ok) {
                         const errText = await res.text().catch(() => '');
-                        throw new Error(`API error ${res.status}: ${errText || res.statusText}`);
+                        throw new Error(`Proxy / API error ${res.status}: ${errText || res.statusText}`);
                     }
 
                     const reader = res.body.getReader();
