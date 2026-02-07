@@ -208,6 +208,8 @@
         });
 
         // GOOGLE SIGN-IN HANDLER
+        let googleInitialized = false;
+        
         // This function will be called after Google script loads
         function handleCredentialResponse(response) {
             // Decode JWT token to get user info
@@ -228,17 +230,32 @@
             window.location.reload();
         }
         
-        // Initialize Google Sign-In when script loads
-        window.onload = function() {
-            if (window.google) {
-                google.accounts.id.initialize({
-                    client_id: '968210645256-ql0ctmsn48dior31oresu53p21rugnna.apps.googleusercontent.com',
-                    callback: handleCredentialResponse,
-                    ux_mode: 'popup', // This makes it open in a popup!
-                    auto_select: false
-                });
+        // Initialize Google Sign-In
+        function initializeGoogleSignIn() {
+            if (window.google && window.google.accounts) {
+                try {
+                    google.accounts.id.initialize({
+                        client_id: '968210645256-ql0ctmsn48dior31oresu53p21rugnna.apps.googleusercontent.com',
+                        callback: handleCredentialResponse,
+                        ux_mode: 'popup',
+                        auto_select: false
+                    });
+                    googleInitialized = true;
+                    console.log('Google Sign-In initialized successfully');
+                } catch (e) {
+                    console.error('Failed to initialize Google Sign-In:', e);
+                }
+            } else {
+                console.log('Google Sign-In library not loaded yet, retrying...');
+                setTimeout(initializeGoogleSignIn, 500);
             }
-        };
+        }
+        
+        // Try to initialize when window loads
+        window.addEventListener('load', initializeGoogleSignIn);
+        
+        // Also try after a delay as backup
+        setTimeout(initializeGoogleSignIn, 1000);
 
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('loading').style.display = 'none';
@@ -287,10 +304,38 @@
             // Handle custom Google sign-in button click
             if (customSignInBtn) {
                 customSignInBtn.onclick = () => {
-                    if (window.google) {
-                        google.accounts.id.prompt(); // This opens the popup!
-                    } else {
-                        alert('Google Sign-In is loading, please try again in a moment.');
+                    console.log('Sign-in button clicked');
+                    console.log('Google available:', !!window.google);
+                    console.log('Google initialized:', googleInitialized);
+                    
+                    if (!window.google || !window.google.accounts) {
+                        alert('Google Sign-In is still loading. Please wait a moment and try again.');
+                        // Try to initialize again
+                        initializeGoogleSignIn();
+                        return;
+                    }
+                    
+                    if (!googleInitialized) {
+                        alert('Google Sign-In is initializing. Please try again in a moment.');
+                        initializeGoogleSignIn();
+                        return;
+                    }
+                    
+                    try {
+                        google.accounts.id.prompt((notification) => {
+                            console.log('Prompt notification:', notification);
+                            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                                console.log('Prompt not displayed, reason:', notification.getNotDisplayedReason(), notification.getSkippedReason());
+                                // If prompt doesn't show, render the button directly
+                                google.accounts.id.renderButton(
+                                    customSignInBtn,
+                                    { theme: "filled_blue", size: "large", text: "signin_with", width: 320 }
+                                );
+                            }
+                        });
+                    } catch (e) {
+                        console.error('Error showing prompt:', e);
+                        alert('Error opening sign-in. Please check console for details.');
                     }
                 };
             }
