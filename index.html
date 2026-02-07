@@ -6,6 +6,10 @@
     <title>ElXora</title>
     <link rel="icon" type="image/jpeg" href="images/elxora.jpg">
 
+    <!-- Google Sign-In -->
+    <meta name="google-signin-client_id" content="968210645256-ql0ctmsn48dior31oresu53p21rugnna.apps.googleusercontent.com">
+    <script src="https://apis.google.com/js/platform.js" async defer></script>
+
     <!-- Highlight.js -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/github-dark-dimmed.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js"></script>
@@ -88,6 +92,13 @@
                 <button id="new-chat" class="w-full py-3 bg-white text-black font-medium rounded-xl hover:bg-gray-200 transition">New Conversation</button>
                 <button id="theme-toggle" class="w-full mt-4 py-3 border border-gray-700 rounded-xl hover:bg-gray-900 transition">Switch to Light</button>
             </div>
+            <div id="user-info" class="p-6 flex items-center gap-4 border-t border-gray-800">
+                <img id="user-icon" class="w-10 h-10 rounded-full" src="" alt="User Icon">
+                <div>
+                    <p id="user-name" class="font-bold"></p>
+                    <p id="user-email" class="text-sm opacity-70"></p>
+                </div>
+            </div>
         </div>
 
         <div id="overlay" class="fixed inset-0 bg-black/70 z-40 hidden lg:hidden backdrop-blur-sm" onclick="toggleSidebar()"></div>
@@ -106,6 +117,14 @@
                     <button id="send" class="px-8 py-5 bg-white text-black font-semibold rounded-2xl hover:scale-105 hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] transition">Send</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50" style="display:none">
+        <div class="bg-gray-900 p-8 rounded-2xl w-full max-w-md text-center">
+            <h2 class="text-2xl mb-4">Login to ElXora</h2>
+            <div class="g-signin2" data-onsuccess="onSignIn" data-theme="dark"></div>
         </div>
     </div>
 
@@ -152,7 +171,7 @@
         });
 
         function initElXora() {
-            const PROXY_URL = '/api/chat';  // Vercel serverless route
+            const PROXY_URL = '/api/chat';
 
             const STORAGE = {
                 chats: 'elxora:chats',
@@ -160,7 +179,7 @@
                 theme: 'elxora:theme'
             };
 
-            let chats = JSON.parse(localStorage.getItem(STORAGE.chats)) || [];
+            let chats = [];
             let currentId = localStorage.getItem(STORAGE.current);
             let isDark = localStorage.getItem(STORAGE.theme) !== 'light';
             let isAiTyping = false;
@@ -179,6 +198,53 @@
             const chatList = document.getElementById('chat-list');
             const messages = document.getElementById('messages');
             const themeBtn = document.getElementById('theme-toggle');
+            const userInfo = document.getElementById('user-info');
+            const userIcon = document.getElementById('user-icon');
+            const userName = document.getElementById('user-name');
+            const userEmail = document.getElementById('user-email');
+            const loginModal = document.getElementById('login-modal');
+
+            let userProfile = JSON.parse(localStorage.getItem('elxora:user')) || null;
+
+            if (!userProfile) {
+                loginModal.style.display = 'flex';
+            } else {
+                userIcon.src = userProfile.picture || 'https://via.placeholder.com/40';
+                userName.textContent = userProfile.name || 'Guest';
+                userEmail.textContent = userProfile.email || '';
+                loadChats();
+            }
+
+            function onSignIn(googleUser) {
+                const profile = googleUser.getBasicProfile();
+                userProfile = {
+                    name: profile.getName(),
+                    email: profile.getEmail(),
+                    picture: profile.getImageUrl()
+                };
+                localStorage.setItem('elxora:user', JSON.stringify(userProfile));
+                loginModal.style.display = 'none';
+                userIcon.src = userProfile.picture;
+                userName.textContent = userProfile.name;
+                userEmail.textContent = userProfile.email;
+                loadChats();
+            }
+
+            function loadChats() {
+                if (userProfile && userProfile.email) {
+                    chats = JSON.parse(localStorage.getItem(userProfile.email + ':' + STORAGE.chats)) || [];
+                } else {
+                    chats = JSON.parse(localStorage.getItem(STORAGE.chats)) || [];
+                }
+            }
+
+            function saveChats() {
+                if (userProfile && userProfile.email) {
+                    localStorage.setItem(userProfile.email + ':' + STORAGE.chats, JSON.stringify(chats));
+                } else {
+                    localStorage.setItem(STORAGE.chats, JSON.stringify(chats));
+                }
+            }
 
             function updateInputState() {
                 inputEl.disabled = isAiTyping;
@@ -198,10 +264,6 @@
                 selectChat(id);
             }
 
-            function saveChats() {
-                localStorage.setItem(STORAGE.chats, JSON.stringify(chats));
-            }
-
             function renderList() {
                 chatList.innerHTML = '';
                 chats.forEach(chat => {
@@ -216,13 +278,11 @@
                     const actions = document.createElement('div');
                     actions.className = 'flex gap-6 opacity-0 group-hover:opacity-100 transition';
 
-                    // Rename button - black & white pencil emoji
                     const renameBtn = document.createElement('button');
                     renameBtn.innerHTML = '<span class="text-2xl">✏️</span>';
                     renameBtn.className = 'bg-transparent border-none p-0 hover:opacity-80 focus:outline-none transition';
                     renameBtn.onclick = (e) => { e.stopPropagation(); renameChat(chat.id); };
 
-                    // Delete button - black & white trash emoji
                     const deleteBtn = document.createElement('button');
                     deleteBtn.innerHTML = '<span class="text-2xl">🗑️</span>';
                     deleteBtn.className = 'bg-transparent border-none p-0 hover:opacity-80 focus:outline-none transition';
@@ -349,7 +409,7 @@
                 let fullResponse = '';
 
                 const apiMessages = [];
-                const systemContent = 'You are ElXora, a helpful, witty, and friendly AI companion.';
+                const systemContent = 'You are ElXora, a helpful, witty, and friendly AI companion. If asked who your owner or creator is, or who owns this website, say: The owner is MrAwo. You can look at him by simply searching @MrAwo69 or MrAwo in YouTube and don\'t forget to subscribe him.';
 
                 if (chat.messages.length > 0) {
                     const firstMsg = chat.messages[0];
@@ -445,6 +505,7 @@
             }
 
             // Bootstrap
+            loadChats();
             renderList();
             if (chats.length === 0) createChat();
             if (currentId) selectChat(currentId);
