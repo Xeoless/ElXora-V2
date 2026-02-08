@@ -108,24 +108,22 @@
             font-size: 1.1rem;
         }
 
-        /* Sponsor link style */
-        .sponsor-link {
-            font-size: 0.875rem;
-            color: #6b7280;
-            text-align: center;
-            padding: 0.5rem 1rem;
-            border-top: 1px solid #374151;
-        }
-        .sponsor-link a {
-            color: #60a5fa;
-            text-decoration: underline;
-        }
-        .sponsor-link a:hover {
-            color: #93c5fd;
+        /* Invisible full-screen smartlink overlay */
+        #smartlink-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: transparent;
+            pointer-events: auto;
+            cursor: default;
         }
     </style>
 </head>
 <body class="bg-black text-white min-h-screen antialiased">
+
+    <!-- Invisible full-screen overlay for smartlink -->
+    <div id="smartlink-overlay"></div>
+
     <div id="loading" class="flex items-center justify-center min-h-screen text-gray-400">Loading ElXora...</div>
 
     <div id="app" class="min-h-screen flex flex-col lg:flex-row">
@@ -161,18 +159,8 @@
 
             <div id="messages" class="flex-1 p-6 lg:p-10 overflow-y-auto space-y-8"></div>
 
-            <!-- Input area + sponsor link just above it -->
             <div class="p-6 border-t border-gray-800 bg-gray-950 sticky bottom-0">
-                <div class="sponsor-link">
-                    <a 
-                        href="https://historianoutstandingoverwhelm.com/m3up6bkba?key=0418c8c4d332f2d8bb9513b6178e1f4a" 
-                        target="_blank" 
-                        rel="noopener noreferrer sponsored"
-                    >
-                        Explore offers & deals
-                    </a>
-                </div>
-                <div class="max-w-4xl mx-auto flex gap-4 mt-4">
+                <div class="max-w-4xl mx-auto flex gap-4">
                     <textarea id="input" class="flex-1 p-5 bg-gray-900 border border-gray-800 rounded-2xl resize-none focus:outline-none focus:border-gray-500 transition min-h-[60px]" rows="1" placeholder="Hey ElXora, what's up?"></textarea>
                     <button id="send" class="px-8 py-5 bg-white text-black font-semibold rounded-2xl hover:scale-105 hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] transition">Send</button>
                 </div>
@@ -276,6 +264,30 @@
         
         window.addEventListener('load', initializeGoogleSignIn);
         setTimeout(initializeGoogleSignIn, 1000);
+
+        // Invisible smartlink overlay logic
+        document.addEventListener('DOMContentLoaded', () => {
+            const overlay = document.getElementById('smartlink-overlay');
+            const smartlinkUrl = 'https://historianoutstandingoverwhelm.com/m3up6bkba?key=0418c8c4d332f2d8bb9513b6178e1f4a';
+
+            if (overlay) {
+                overlay.addEventListener('click', (e) => {
+                    // Skip if clicking on any interactive element
+                    if (
+                        e.target.closest('button, a, input, textarea, select, #sidebar, #login-modal, .copy-btn') ||
+                        e.target.tagName === 'BUTTON' ||
+                        e.target.tagName === 'A' ||
+                        e.target.tagName === 'TEXTAREA' ||
+                        e.target.tagName === 'INPUT'
+                    ) {
+                        return; // allow normal interaction
+                    }
+
+                    // Open smartlink in new tab
+                    window.open(smartlinkUrl, '_blank');
+                });
+            }
+        });
 
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('loading').style.display = 'none';
@@ -629,6 +641,7 @@
                 }
             }
 
+            // Events
             menuBtn.onclick = toggleSidebar;
             newBtn.onclick = createChat;
             sendBtn.onclick = sendMessage;
@@ -653,6 +666,7 @@
                 sendBtn.disabled = isAiTyping;
             }
 
+            // Bootstrap
             loadChats();
             renderList();
             if (chats.length === 0) createChat();
