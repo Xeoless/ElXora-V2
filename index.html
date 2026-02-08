@@ -114,8 +114,6 @@
             inset: 0;
             z-index: 9999;
             background: transparent;
-            pointer-events: auto;
-            transition: opacity 0.3s ease; /* smooth fade if you want */
         }
     </style>
 </head>
@@ -266,28 +264,26 @@
         setTimeout(initializeGoogleSignIn, 1000);
 
         // ────────────────────────────────────────────────
-        // SMARTLINK OVERLAY – disappears for 10 seconds after redirect
+        // SMARTLINK OVERLAY – completely removed for 10s after trigger, then returns
         // ────────────────────────────────────────────────
         document.addEventListener('DOMContentLoaded', () => {
             const overlay = document.getElementById('smartlink-overlay');
             const smartlinkUrl = 'https://historianoutstandingoverwhelm.com/m3up6bkba?key=0418c8c4d332f2d8bb9513b6178e1f4a';
-            const COOLDOWN_MS = 10000; // 10 seconds
+            const COOLDOWN_MS = 10000; // 10 seconds – change here if needed
 
             if (!overlay) return;
 
-            function enableOverlay() {
-                overlay.style.pointerEvents = 'auto';
-                // overlay.style.opacity = '1';   // if you want visual feedback during testing
+            function showOverlay() {
+                overlay.style.display = 'block';
             }
 
-            function disableOverlayForCooldown() {
-                overlay.style.pointerEvents = 'none';
-                // overlay.style.opacity = '0';   // if you want it to visually fade (optional)
-                setTimeout(enableOverlay, COOLDOWN_MS);
+            function hideOverlayForCooldown() {
+                overlay.style.display = 'none';
+                setTimeout(showOverlay, COOLDOWN_MS);
             }
 
             overlay.addEventListener('click', (e) => {
-                // Prevent redirect when clicking interactive elements
+                // Skip if click is on interactive stuff
                 if (
                     e.target.closest('button, a, input, textarea, select, #sidebar, #login-modal, .message, .code-box, .copy-btn') ||
                     ['BUTTON', 'A', 'TEXTAREA', 'INPUT'].includes(e.target.tagName)
@@ -295,16 +291,16 @@
                     return;
                 }
 
-                // If already in cooldown → ignore
-                if (overlay.style.pointerEvents === 'none') return;
+                // If already hidden → shouldn't happen, but safety
+                if (overlay.style.display === 'none') return;
 
-                // Open smartlink and start cooldown
+                // Trigger smartlink and remove overlay for cooldown
                 window.open(smartlinkUrl, '_blank', 'noopener,noreferrer');
-                disableOverlayForCooldown();
+                hideOverlayForCooldown();
             });
 
-            // Make sure it starts enabled
-            enableOverlay();
+            // Start visible/active
+            showOverlay();
         });
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -659,6 +655,7 @@
                 }
             }
 
+            // Events
             menuBtn.onclick = toggleSidebar;
             newBtn.onclick = createChat;
             sendBtn.onclick = sendMessage;
@@ -683,6 +680,7 @@
                 sendBtn.disabled = isAiTyping;
             }
 
+            // Bootstrap
             loadChats();
             renderList();
             if (chats.length === 0) createChat();
