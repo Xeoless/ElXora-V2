@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-  // CORS headers - allow frontend to call this
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -15,60 +14,35 @@ export default async function handler(req, res) {
   try {
     const body = req.body;
 
-    // Use your OpenRouter key from env var (add it in Vercel settings if not there yet)
-    const API_KEY = process.env.OPENROUTER_API_KEY;
-
-    if (!API_KEY) {
-      console.error('OPENROUTER_API_KEY missing in env vars');
-      return res.status(500).json({ error: 'Server error: API key not set' });
+    if (!process.env.OPENROUTER_API_KEY) {
+      throw new Error('OPENROUTER_API_KEY environment variable is missing');
     }
 
-    console.log('Sending request to OpenRouter');
-
-    const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${API_KEY}`,
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://elxora.frii.site',
+        'HTTP-Referer': req.headers.referer || 'https://your-vercel-domain.vercel.app',
         'X-Title': 'ElXora Chat'
       },
-      body: JSON.stringify({
-        model: 'google/gemma-2-27b-it:free',  // Fast free model on OpenRouter
-        messages: body.messages,
-        temperature: 0.7,
-        max_tokens: 2048,
-        stream: true  // No streaming = full reply at once, no stuck "Thinking..."
-      })
+      body: JSON.stringify(body)
     });
 
-    if (!openRouterResponse.ok) {
-      const errorText = await openRouterResponse.text();
-      console.error('OpenRouter error:', openRouterResponse.status, errorText);
-      return res.status(openRouterResponse.status).json({ 
-        error: `OpenRouter error ${openRouterResponse.status}: ${errorText}` 
-      });
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('OpenRouter error:', response.status, errorText);
+      return res.status(response.status).json({ error: `OpenRouter returned ${response.status}: ${errorText}` });
     }
 
-    const data = await openRouterResponse.json();
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
 
-    const assistantReply = data.choices?.[0]?.message?.content || '';
-
-    if (!assistantReply) {
-      return res.status(500).json({ error: 'No reply from OpenRouter' });
-    }
-
-    return res.status(200).json({
-      choices: [{
-        message: {
-          role: 'assistant',
-          content: assistantReply
-        }
-      }]
-    });
+    response.body.pipe(res);
 
   } catch (error) {
     console.error('Proxy error:', error.message, error.stack);
-    return res.status(500).json({ error: 'Proxy failed: ' + (error.message || 'Unknown') });
+    res.status(500).json({ error: 'Failed to proxy request: ' + error.message });
   }
-          }
+  }
